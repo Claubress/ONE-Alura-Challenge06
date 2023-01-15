@@ -10,11 +10,16 @@ import javax.swing.JOptionPane;
 import javax.swing.ImageIcon;
 import java.awt.Color;
 import javax.swing.JTextField;
+
+import com.hotel.controller.ReservaController;
+import com.hotel.model.Reserva;
 import com.toedter.calendar.JDateChooser;
 import java.awt.Font;
 import javax.swing.JComboBox;
 import javax.swing.DefaultComboBoxModel;
 import java.text.Format;
+import java.time.Duration;
+import java.util.Date;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
@@ -39,6 +44,8 @@ public class ReservasView extends JFrame {
 	private JLabel lblValorSimbolo; 
 	private JLabel labelAtras;
 
+	private ReservaController reservasController;
+		
 	/**
 	 * Launch the application.
 	 */
@@ -60,6 +67,9 @@ public class ReservasView extends JFrame {
 	 */
 	public ReservasView() {
 		super("Reserva");
+		
+		this.reservasController = new ReservaController();
+		
 		setIconImage(Toolkit.getDefaultToolkit().getImage(ReservasView.class.getResource("/imagenes/aH-40px.png")));
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 910, 560);
@@ -110,6 +120,22 @@ public class ReservasView extends JFrame {
 		txtFechaE.setBorder(new LineBorder(SystemColor.window));
 		txtFechaE.setDateFormatString("yyyy-MM-dd");
 		txtFechaE.setFont(new Font("Roboto", Font.PLAIN, 18));
+		
+		txtFechaE.addPropertyChangeListener(new PropertyChangeListener() {
+			public void propertyChange(PropertyChangeEvent evt) {
+
+				//Activa el evento, después del usuario seleccionar las fechas se debe calcular el valor de la reserva
+
+				if(ReservasView.txtFechaE.getDate() != null && ReservasView.txtFechaS.getDate() != null) {
+										
+					if(validateDate(ReservasView.txtFechaE.getDate(), ReservasView.txtFechaS.getDate(), "La fecha del check in, deber ser menor a la del check out")) {
+						txtValor.setText(ValorReserva());						
+					}
+
+				}
+			}
+		});
+
 		panel.add(txtFechaE);
 		
 		lblValorSimbolo = new JLabel("$");
@@ -139,9 +165,22 @@ public class ReservasView extends JFrame {
 		txtFechaS.getCalendarButton().setBounds(267, 1, 21, 31);
 		txtFechaS.setBackground(Color.WHITE);
 		txtFechaS.setFont(new Font("Roboto", Font.PLAIN, 18));
+
 		txtFechaS.addPropertyChangeListener(new PropertyChangeListener() {
 			public void propertyChange(PropertyChangeEvent evt) {
-//Activa el evento, después del usuario seleccionar las fechas se debe calcular el valor de la reserva
+
+				//Activa el evento, después del usuario seleccionar las fechas se debe calcular el valor de la reserva
+
+				if(ReservasView.txtFechaE.getDate() != null && ReservasView.txtFechaS.getDate() != null) {
+					
+					if(validateDate(ReservasView.txtFechaE.getDate(), 
+							        ReservasView.txtFechaS.getDate(), 
+							        "La fecha del check out, deber ser mayor o igual a la del check in")) {
+
+						txtValor.setText(ValorReserva());
+						
+					}
+				}			
 			}
 		});
 		txtFechaS.setDateFormatString("yyyy-MM-dd");
@@ -155,7 +194,7 @@ public class ReservasView extends JFrame {
 		txtValor.setBackground(SystemColor.text);
 		txtValor.setHorizontalAlignment(SwingConstants.CENTER);
 		txtValor.setForeground(Color.BLACK);
-		txtValor.setBounds(78, 328, 43, 33);
+		txtValor.setBounds(78, 328, 90, 33);
 		txtValor.setEditable(false);
 		txtValor.setFont(new Font("Roboto Black", Font.BOLD, 17));
 		txtValor.setBorder(javax.swing.BorderFactory.createEmptyBorder());
@@ -291,13 +330,41 @@ public class ReservasView extends JFrame {
 		separator_1.setBackground(SystemColor.textHighlight);
 		panel.add(separator_1);
 		
+	
+		
+		
+		
 		JPanel btnsiguiente = new JPanel();
 		btnsiguiente.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
+
+
+				// crear reserva	
+
 				if (ReservasView.txtFechaE.getDate() != null && ReservasView.txtFechaS.getDate() != null) {		
-					RegistroHuesped registro = new RegistroHuesped();
-					registro.setVisible(true);
+					
+					if(validateDate(ReservasView.txtFechaE.getDate(), 
+					        ReservasView.txtFechaS.getDate(), 
+					        "La fecha del check in, deber ser mayor o igual a la del check out")) {
+												
+						String fechaE = ((JTextField)txtFechaE.getDateEditor().getUiComponent()).getText();
+						String fechaS = ((JTextField)txtFechaS.getDateEditor().getUiComponent()).getText();
+						
+						Reserva reserva = new Reserva(java.sql.Date.valueOf(fechaE), 
+								java.sql.Date.valueOf(fechaS), 
+								Float.parseFloat(txtValor.getText()), 
+								txtFormaPago.getSelectedItem().toString());
+						
+
+						reservasController.save(reserva);
+						
+						
+						RegistroHuesped registro = new RegistroHuesped(reserva.getId());
+						registro.setVisible(true);
+						dispose();
+					}
+
 				} else {
 					JOptionPane.showMessageDialog(null, "Debes llenar todos los campos.");
 				}
@@ -317,15 +384,44 @@ public class ReservasView extends JFrame {
 		btnsiguiente.add(lblSiguiente);
 	}
 
+	
 	//Código que permite mover la ventana por la pantalla según la posición de "x" y "y"	
 	 private void headerMousePressed(java.awt.event.MouseEvent evt) {
 	        xMouse = evt.getX();
 	        yMouse = evt.getY();
-	    }
+	 }
 
-	    private void headerMouseDragged(java.awt.event.MouseEvent evt) {
+     private void headerMouseDragged(java.awt.event.MouseEvent evt) {
 	        int x = evt.getXOnScreen();
 	        int y = evt.getYOnScreen();
 	        this.setLocation(x - xMouse, y - yMouse);
-}
+     }
+     
+     
+     private boolean validateDate(Date dateIn, Date dateOut, String message) {
+    	 
+		boolean isValid = true;
+    	 	
+		if(!dateIn.before(dateOut)) {
+			JOptionPane.showMessageDialog(null, message);
+			isValid = false;
+		}
+		
+		return isValid;		 
+     }
+     
+     
+     private String ValorReserva() {
+    
+    	 int reservePercentage = 30;
+    	 double costDay = 100;
+    	 long quantityDays =  ((txtFechaS.getDate().getTime() - txtFechaE.getDate().getTime()) / 86400000) + 1;
+    	 
+    	 Double costReserve = (quantityDays * costDay) * (reservePercentage / 100.00);  
+    	 
+    	 return costReserve.toString();
+     }
+     
+     
+     
 }
